@@ -1,0 +1,38 @@
+apply plugin: 'java'
+
+version '1.0'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'net.portswigger.burp.extender:burp-extender-api:2.1'
+	implementation group: 'org.json', name: 'json', version: '20201115'
+	implementation 'org.json:json:20201115'
+}
+
+sourceSets {
+	main {
+		java {
+			srcDir 'src'
+		}
+	}
+}
+
+gradle.projectsEvaluated {
+	tasks.withType(JavaCompile) {
+		options.compilerArgs << "-Xlint:unchecked"
+	}
+}
+
+task fatJar(type: Jar) {
+	archiveBaseName = project.name + '-all'
+	from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+	with jar
+}
+
+compileJava {
+	targetCompatibility '1.8'
+	sourceCompatibility '1.8'
+}
