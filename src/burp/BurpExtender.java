@@ -21,7 +21,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 	private PrintWriter stdout;
 	private PrintWriter stderr;
 
-	public static final boolean DEVELOPER_MODE = false;
 	public static final boolean ENABLE_EXPERIMENTAL_PAYLOADS = true;
 
 	public final String EXTENSION_NAME    = "NoSQLi Scanner";
@@ -159,11 +158,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 			this.INJS_ALL.add(new NoSQLiPayload(INJ_TYPE_TIME, "1';var d=new Date();do{var cd=new Date();}while(cd-d<1);var xyz='1", "1';var d=new Date();do{var cd=new Date();}while(cd-d<10000);var xyz='1", null));
 			this.INJS_ALL.add(new NoSQLiPayload(INJ_TYPE_TIME, "1\\';var d=new Date();do{var cd=new Date();}while(cd-d<1);var xyz='1", "1\\';var d=new Date();do{var cd=new Date();}while(cd-d<10000);var xyz='1", null));
 
-			// todo, multi Injection
-			//username=admin', $or: [ {}, {'a': 'a&password=' }], $comment: 'successful MongoDB injection'
-			// expl
-			// require('fs').readdirSync('.').toString()
-
 			// experimentals
 			this.INJS_ALL.add(new NoSQLiPayload(INJ_TYPE_URL_BODY, "_security", "_all_docs", null));
 			this.INJS_ALL.add(new NoSQLiPayload(INJ_TYPE_URL_BODY, "%5b%5d=_security", "%5b%5d=_all_docs", null));
@@ -269,11 +263,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 							String body = requestStr.substring(bodyOff);
 							if (body.length() > 0)
 							{
-								if (DEVELOPER_MODE) stdout.println("Try converting the following json to query string:\n" + body.trim() + "\n");
 								JSONObject jsonObj = new JSONObject(body.trim());
 								String queryString = ConvertJSONtoQueryString(jsonObj, null, 0);
 								queryString = queryString.substring(1);
-								if (DEVELOPER_MODE) stdout.println("QueryString: '" + queryString + "'");
 
 								String newRequestStr = requestStr.substring(0, bodyOff) + queryString;
 								byte[] newRequest = helpers.stringToBytes(newRequestStr);
@@ -322,7 +314,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 
 		int c = loadNoSQLiPayloads();
 		this.stdout.println(EXTENSION_NAME + " v" + EXTENSION_VERSION + " - Loaded " + c + " payload(s).");
-		if (this.DEVELOPER_MODE) this.stdout.println("Developer mode enabled");
 
 		// set our extension name
 		callbacks.setExtensionName(EXTENSION_NAME);
@@ -362,13 +353,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 
 		for (IParameter p: reqInfo.getParameters())
 		{
-			if (this.DEVELOPER_MODE) this.stdout.println("Param type: " + p.getType() + ", Param name: " + p.getName() + ", Param value: " + p.getValue());
-
 			// handle json parameter
 			if (p.getType() == IParameter.PARAM_JSON)
 			{
-				if (this.DEVELOPER_MODE) this.stdout.println("Found JSON param");
-
 				int start = p.getValueStart();
 				char s = requestStr.charAt(start-1);
 				if (s == '"') start--;
@@ -381,22 +368,14 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 			}
 			else if (p.getType() == IParameter.PARAM_BODY || p.getType() == IParameter.PARAM_URL)
 			{
-				if (this.DEVELOPER_MODE) this.stdout.println("Found BODY/URL param");
-
 				int start = p.getNameEnd();
 				char s = requestStr.charAt(start);
-				if (this.DEVELOPER_MODE)
-				{
-					if (s == '=') this.stdout.println("got start token: " + s);
-				}
-
 				int end = p.getValueEnd();
 
 				insertionPoints.add(helpers.makeScannerInsertionPoint(EXTENSION_NAME, request, start, end)); // add custom urlencoded injection point
 			}
 			else
 			{
-				if (this.DEVELOPER_MODE) this.stdout.println("Got parameter type: " + p.getType());
 				continue;
 			}
 
@@ -485,11 +464,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 				if (e.get_payloadType() == INJ_TYPE_TIME)
 				{
 					timerCheck[0] = timer[1] - timer[0];
-					if (this.DEVELOPER_MODE) this.stdout.println("TimerCheck 0: " + timerCheck[0] + ", timer[1]: " + timer[1] + ", timer[0]: " + timer[0]);
 					timerCheck[1] = timer[2] - timer[1];
-					if (this.DEVELOPER_MODE) this.stdout.println("TimerCheck 1: " + timerCheck[1] + ", timer[2]: " + timer[2] + ", timer[0]: " + timer[1]);
 					long timerDiff = Math.abs(timerCheck[1] - timerCheck[0]);
-					if (this.DEVELOPER_MODE) this.stdout.println("Time diff (timerCheck[1]-timerCheck[0]): " + timerDiff);
 
 					if (timerDiff >= 10000)
 					{
@@ -510,21 +486,16 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 				variation = helpers.analyzeResponseVariations(checkRequestResponse[0].getResponse(), checkRequestResponse[1].getResponse());
 
 				// check variation from request1 and request2 responses
-				if (this.DEVELOPER_MODE) this.stdout.print("[variation] Check for changes (inj1 vs inj2): ");
 				List<String> responseChanges = variation.getVariantAttributes();
 				for (String change : responseChanges)
 				{
-					if (this.DEVELOPER_MODE) this.stdout.print(change + ", ");
 					if (change.equals("whole_body_content")) whole_body_content = true;
 					if (change.equals("limited_body_content")) limited_body_content = true;
 					if (change.equals("status_code")) status_code = true;
 				}
-				if (this.DEVELOPER_MODE) this.stdout.println("DONE");
 
 				DigYourOwnHole[0] = (whole_body_content || limited_body_content || status_code);
 				DigYourOwnHole_cnt = (whole_body_content ? 1 : 0) + (limited_body_content ? 1 : 0) + (status_code ? 1 : 0);
-				if (this.DEVELOPER_MODE) this.stdout.println("DigYourOwnHole: " + ((DigYourOwnHole[0]) ? "true" : "false"));
-				if (this.DEVELOPER_MODE) this.stdout.println("DigYourOwnHole_cnt: " + DigYourOwnHole_cnt);
 
 				if (DigYourOwnHole[0] && DigYourOwnHole_cnt == 3)
 				{
@@ -542,57 +513,29 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 				}
 				else if (DigYourOwnHole[0]) // if responses are different, check variation about base response
 				{
-					if (this.DEVELOPER_MODE)
-					{
-						this.stdout.println("base:");
-						this.stdout.println(helpers.bytesToString(baseRequestResponse.getResponse()));
-						this.stdout.println("inj1:");
-						this.stdout.println(helpers.bytesToString(checkRequestResponse[0].getResponse()));
-						this.stdout.println("inj2:");
-						this.stdout.println(helpers.bytesToString(checkRequestResponse[1].getResponse()));
-						this.stdout.println("Possible NoSQL Injection. Check for changes between baseResponse and first injected payload ...");
-					}
-
 					whole_body_content = limited_body_content = status_code = false;
 					variation = helpers.analyzeResponseVariations(baseRequestResponse.getResponse(), checkRequestResponse[0].getResponse());
-					if (this.DEVELOPER_MODE) this.stdout.print("[variation] Check for changes (base vs inj1): ");
 					responseChanges = variation.getVariantAttributes();
 					for (String change : responseChanges)
 					{
-						if (this.DEVELOPER_MODE) this.stdout.print(change + ", ");
 						if (change.equals("whole_body_content")) whole_body_content = true;
 						if (change.equals("limited_body_content")) limited_body_content = true;
 						if (change.equals("status_code")) status_code = true;
 					}
-					if (this.DEVELOPER_MODE) this.stdout.println("DONE");
 
 					DigYourOwnHole[1] = (whole_body_content || limited_body_content || status_code);
 
-					if (this.DEVELOPER_MODE)
-					{
-						if (DigYourOwnHole[1]) this.stdout.println("Possible NoSQL Injection. BaseResponse and first injected payload changes!");
-						this.stdout.println("Possible NoSQL Injection. Check for changes between baseResponse and second injected payload ...");
-					}
-
 					whole_body_content = limited_body_content = status_code = false;
 					variation = helpers.analyzeResponseVariations(baseRequestResponse.getResponse(), checkRequestResponse[1].getResponse());
-					if (this.DEVELOPER_MODE) this.stdout.print("[variation] Check for changes (base vs inj2): ");
 					responseChanges = variation.getVariantAttributes();
 					for (String change : responseChanges)
 					{
-						if (this.DEVELOPER_MODE) this.stdout.print(change + ", ");
 						if (change.equals("whole_body_content")) whole_body_content = true;
 						if (change.equals("limited_body_content")) limited_body_content = true;
 						if (change.equals("status_code")) status_code = true;
 					}
-					if (this.DEVELOPER_MODE) this.stdout.println("DONE");
 
 					DigYourOwnHole[2] = (whole_body_content || limited_body_content || status_code);
-
-					if (this.DEVELOPER_MODE)
-					{
-						if (DigYourOwnHole[2]) this.stdout.println("Possible NoSQL Injection. BaseResponse and second injected payload changes!");
-					}
 
 					boolean check_variation = (DigYourOwnHole[1] != DigYourOwnHole[2]);
 
@@ -653,8 +596,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IScannerInser
 				}
 			}
 		});
-
-		if (this.DEVELOPER_MODE) this.stdout.println("Got " + issues.size() + " issue(s).");
 
 		return issues;
 	}
