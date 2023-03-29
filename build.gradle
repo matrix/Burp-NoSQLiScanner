@@ -27,7 +27,7 @@ gradle.projectsEvaluated {
 }
 
 task fatJar(type: Jar) {
-	archiveBaseName = project.name + '-all'
+	baseName = project.name + '-all'
 	from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
 	with jar
 }
