@@ -1,6 +1,8 @@
-apply plugin: 'java'
+plugins {
+	id 'java'
+}
 
-version '1.0'
+version = '1.0'
 
 repositories {
 	mavenCentral()
@@ -8,8 +10,12 @@ repositories {
 
 dependencies {
 	implementation 'net.portswigger.burp.extender:burp-extender-api:2.1'
-	implementation group: 'org.json', name: 'json', version: '20201115'
-	implementation 'org.json:json:20201115'
+	implementation 'org.json:json:20250517'
+}
+
+java {
+	targetCompatibility = JavaVersion.VERSION_17
+	sourceCompatibility = JavaVersion.VERSION_17
 }
 
 sourceSets {
@@ -22,17 +28,16 @@ sourceSets {
 
 gradle.projectsEvaluated {
 	tasks.withType(JavaCompile) {
-		options.compilerArgs << "-Xlint:unchecked"
+		options.compilerArgs = ['-Xlint:unchecked', '-Xlint:deprecation']
 	}
 }
 
 task fatJar(type: Jar) {
-	baseName = project.name + '-all'
+	archiveBaseName.set(project.name + '-all')
+	archiveVersion.set(project.version)
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
 	from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
 	with jar
 }
 
-compileJava {
-	targetCompatibility '1.8'
-	sourceCompatibility '1.8'
-}
